@@ -1,6 +1,40 @@
 # LibraSphere — Library Management System
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/akshay6306/LibraSphere)
+[![CI/CD](https://github.com/akshay6306/LibraSphere/actions/workflows/ci.yml/badge.svg)](https://github.com/akshay6306/LibraSphere/actions/workflows/ci.yml)
+
 LibraSphere is a complete, enterprise-grade, multi-branch library circulation and catalog management system. Designed for educational institutions, campuses, and municipal libraries, it provides end-to-end management of book inventories, member privileges, barcode checkouts, returns, FIFO hold queues, fine calculation, and administrative business intelligence.
+
+---
+
+## ⚡ How to Run Using GitHub
+
+### Option 1: Run in Browser (1-Click via GitHub Codespaces)
+No local installation required! You can run the complete full-stack project in your browser:
+1. Open the repository on GitHub: **[https://github.com/akshay6306/LibraSphere](https://github.com/akshay6306/LibraSphere)**
+2. Click the green **Code** button → Switch to the **Codespaces** tab.
+3. Click **"Create codespace on main"** (or click the **Open in GitHub Codespaces** badge above).
+4. GitHub Codespaces will automatically containerize the environment, install dependencies, seed the database, and launch both frontend (port 5173) and backend (port 3001) in your browser!
+
+### Option 2: Clone and Run Locally
+```bash
+# 1. Clone the repository
+git clone https://github.com/akshay6306/LibraSphere.git
+cd LibraSphere
+
+# 2. Install all monorepo dependencies
+npm install
+
+# 3. Initialize SQLite database & seed 2,300 books
+npm run prisma:generate --workspace=server
+npm run prisma:push --workspace=server
+npm run seed
+
+# 4. Start both client and server concurrently
+npm run dev
+```
+- Open **http://localhost:5173** in your browser.
+- Open **http://localhost:3001/api/docs** for the Swagger REST API documentation.
 
 ---
 
