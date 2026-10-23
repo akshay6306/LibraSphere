@@ -1,0 +1,266 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// NOTE: SQLite does not support Prisma enums.
+// All enum-like fields are stored as String with runtime validation.
+// Valid values documented in comments:
+//   Role:              ADMIN | LIBRARIAN | MEMBER
+//   CopyStatus:        AVAILABLE | BORROWED | RESERVED | LOST | DAMAGED
+//   LoanStatus:        ACTIVE | RETURNED | OVERDUE
+//   ReservationStatus: PENDING | READY | FULFILLED | CANCELLED | EXPIRED
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?
+  role      String   @default("MEMBER")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberProfile   Member?
+  managedBranches Branch[]       @relation("BranchManager")
+  issuedLoans     Loan[]         @relation("IssuedByLibrarian")
+  refreshTokens   RefreshToken[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+}
+
+model Member {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membershipId           String    @unique
+  address                String?
+  dateOfBirth            DateTime?
+  membershipExpiry       DateTime
+  totalFines             Float     @default(0.0)
+  isEmailVerified        Boolean   @default(false)
+  emailVerificationToken String?
+  passwordResetToken     String?
+  passwordResetExpiry    DateTime?
+
+  loans        Loan[]
+  reservations Reservation[]
+  fines        Fine[]
+  payments     Payment[]
+  reviews      Review[]
+  wishlist     Wishlist[]
+}
+
+model Branch {
+  id        String  @id @default(uuid())
+  name      String
+  address   String
+  phone     String
+  email     String
+  isActive  Boolean @default(true)
+  managerId String?
+  manager   User?   @relation("BranchManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  copies       BookCopy[]
+  loans        Loan[]
+  reservations Reservation[]
+}
+
+model Book {
+  id            String   @id @default(uuid())
+  isbn          String   @unique
+  title         String
+  author        String
+  publisher     String
+  publishedYear Int
+  category      String
+  subcategory   String   @default("")
+  description   String
+  coverUrl      String?
+  language      String   @default("English")
+  pages         Int
+  price         Float
+  format        String   @default("Paperback") // Hardcover, Paperback, E-book
+  maturityRating String?
+  seriesName    String?
+  seriesNumber  String?
+  edition       String?
+  isNewArrival  Boolean  @default(false)
+  isStaffPick   Boolean  @default(false)
+  previewUrl    String?
+  amazonUrl     String?
+  rating        Float    @default(4.0)
+  ratingCount   Int      @default(0)
+  ageRange      String?  // e.g. "0-5", "6-8", "9-12", "13-18", "Adult"
+  createdAt     DateTime @default(now())
+
+  copies       BookCopy[]
+  reservations Reservation[]
+  reviews      Review[]
+  wishlist     Wishlist[]
+
+  @@index([category])
+  @@index([subcategory])
+  @@index([language])
+  @@index([rating])
+  @@index([isNewArrival])
+  @@index([isStaffPick])
+}
+
+model BookCopy {
+  id            String  @id @default(uuid())
+  bookId        String
+  book          Book    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch  @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  barcode       String  @unique
+  status        String  @default("AVAILABLE")
+  shelfLocation String
+  version       Int     @default(1)
+
+  loans Loan[]
+
+  @@index([bookId, branchId, status])
+}
+
+model Loan {
+  id             String    @id @default(uuid())
+  copyId         String
+  copy           BookCopy  @relation(fields: [copyId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  librarianId    String
+  librarian      User      @relation("IssuedByLibrarian", fields: [librarianId], references: [id])
+  branchId       String
+  branch         Branch    @relation(fields: [branchId], references: [id])
+  issuedAt       DateTime  @default(now())
+  dueDate        DateTime
+  returnedAt     DateTime?
+  renewalCount   Int       @default(0)
+  status         String    @default("ACTIVE")
+  conditionNote  String?
+  idempotencyKey String?   @unique
+
+  fines Fine[]
+
+  @@index([memberId, status])
+}
+
+model Reservation {
+  id            String    @id @default(uuid())
+  bookId        String
+  book          Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  branchId      String
+  branch        Branch    @relation(fields: [branchId], references: [id])
+  status        String    @default("PENDING")
+  requestedAt   DateTime  @default(now())
+  readyAt       DateTime?
+  expiresAt     DateTime?
+  queuePosition Int       @default(1)
+
+  @@index([bookId, status])
+  @@index([memberId, status])
+}
+
+model Fine {
+  id        String   @id @default(uuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  amount    Float
+  reason    String
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  payments Payment[]
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  fineId        String
+  fine          Fine     @relation(fields: [fineId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  amount        Float
+  method        String
+  transactionId String
+  paidAt        DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@unique([bookId, memberId])
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  bookId    String
+  book      Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, bookId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  details    String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

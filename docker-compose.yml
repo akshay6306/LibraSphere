@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: librasphere_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: librasphere_user
+      POSTGRES_PASSWORD: librasphere_password
+      POSTGRES_DB: librasphere_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U librasphere_user -d librasphere_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: librasphere_redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: librasphere_server
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      CLIENT_URL: http://localhost:5173
+      DATABASE_URL: postgresql://librasphere_user:librasphere_password@postgres:5432/librasphere_db?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: librasphere_jwt_access_secret_super_secure_key_123456
+      JWT_REFRESH_SECRET: librasphere_jwt_refresh_secret_super_secure_key_654321
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
