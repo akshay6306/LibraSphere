@@ -31,7 +31,8 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = endpoint.startsWith('/api') ? endpoint : `/api/v1${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+  const apiBase = import.meta.env.VITE_API_URL || '';
+  const url = `${apiBase}${endpoint.startsWith('/api') ? endpoint : `/api/v1${endpoint.startsWith('/') ? '' : '/'}${endpoint}`}`;
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

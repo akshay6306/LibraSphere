@@ -64,7 +64,7 @@ export const App: React.FC = () => {
       <ThemeProvider>
         <AuthProvider>
           <ToastProvider>
-            <BrowserRouter>
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
               <Routes>
                 {/* Public Routes */}
                 <Route element={<PublicLayout />}>
