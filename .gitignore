@@ -47,3 +47,5 @@ lerna-debug.log*
 # Testing & Coverage
 coverage/
 .turbo/
+
+.vercel
