@@ -417,8 +417,13 @@ async function main() {
       const fineAmount = overdueDays * 5; // $5/day
       const isPaid = i % 2 === 0;
 
-      const fine = await prisma.fine.create({
-        data: {
+      const fine = await prisma.fine.upsert({
+        where: { id: `fine-${loanIndex}` },
+        update: {
+          amount: fineAmount,
+          isPaid
+        },
+        create: {
           id: `fine-${loanIndex}`,
           loanId: loan.id,
           memberId: memberObj.member.id,
@@ -430,8 +435,13 @@ async function main() {
       });
 
       if (isPaid) {
-        await prisma.payment.create({
-          data: {
+        await prisma.payment.upsert({
+          where: { id: `pay-${loanIndex}` },
+          update: {
+            amount: fineAmount
+          },
+          create: {
+            id: `pay-${loanIndex}`,
             fineId: fine.id,
             memberId: memberObj.member.id,
             amount: fineAmount,
@@ -459,8 +469,10 @@ async function main() {
     const branch = branches[r % branches.length];
     const isReady = r === 0 || r === 1;
 
-    await prisma.reservation.create({
-      data: {
+    await prisma.reservation.upsert({
+      where: { id: `res-${r + 1}` },
+      update: {},
+      create: {
         id: `res-${r + 1}`,
         bookId: book.id,
         memberId: memberObj.member.id,
@@ -487,8 +499,15 @@ async function main() {
   for (let rev = 0; rev < 25; rev++) {
     const book = books[rev % 15];
     const memberObj = members[rev % members.length];
-    await prisma.review.create({
-      data: {
+    await prisma.review.upsert({
+      where: {
+        bookId_memberId: {
+          bookId: book.id,
+          memberId: memberObj.member.id
+        }
+      },
+      update: {},
+      create: {
         bookId: book.id,
         memberId: memberObj.member.id,
         rating: 4 + (rev % 2),
@@ -522,8 +541,11 @@ async function main() {
   console.log('Seeding Notifications...');
   for (let n = 0; n < members.length; n++) {
     const user = members[n].user;
-    await prisma.notification.create({
-      data: {
+    await prisma.notification.upsert({
+      where: { id: `notif-${n + 1}` },
+      update: {},
+      create: {
+        id: `notif-${n + 1}`,
         userId: user.id,
         type: 'WELCOME',
         title: 'Welcome to LibraSphere!',
@@ -535,8 +557,11 @@ async function main() {
 
   // 11. Seed Audit Logs
   console.log('Seeding Audit Logs...');
-  await prisma.auditLog.create({
-    data: {
+  await prisma.auditLog.upsert({
+    where: { id: 'audit-seed-001' },
+    update: {},
+    create: {
+      id: 'audit-seed-001',
       userId: adminUser.id,
       action: 'SYSTEM_INITIALIZATION',
       entityType: 'SYSTEM',
